@@ -1,36 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Stripe Payment Gateway
 
-## Getting Started
+A full-stack payment gateway built with Next.js, Stripe, Drizzle ORM, and Neon PostgreSQL. Built in sandbox mode as a learning project.
 
-First, run the development server:
+**Live demo:** https://stripe-wayphantomme.vercel.app
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## What it does
+
+- Product listing page with buy buttons
+- Stripe Checkout integration (server-side session creation, price never from browser)
+- Webhook handler with signature verification and idempotency
+- Order tracking in PostgreSQL (pending → paid → refunded)
+- Success page with real-time status polling via auto-refresh
+- Refund flow confirmed via webhook
+
+## Tech stack
+
+- [Next.js 16](https://nextjs.org) — App Router, TypeScript
+- [Stripe](https://stripe.com) — Checkout, webhooks, refunds
+- [Drizzle ORM](https://orm.drizzle.team) — schema, migrations, queries
+- [Neon](https://neon.tech) — serverless PostgreSQL
+- [Tailwind CSS v4](https://tailwindcss.com)
+- Deployed on [Vercel](https://vercel.com)
+
+## Architecture
+
+```
+Landing Page → POST /api/checkout → Stripe Checkout
+                                          ↓
+                              /success?order=id ← redirect
+                              /api/webhook ← Stripe events
+                                    ↓
+                              Neon PostgreSQL (orders table)
+                                    ↑
+                              /api/refund → stripe.refunds.create
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Key concepts demonstrated
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Webhook as source of truth** — the success page starts as "pending" and only flips to "paid" after the webhook arrives, not after the redirect. Stopping `stripe listen` keeps it stuck at "pending" — that's the point.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Idempotency** — the `processed_events` table prevents the same event from being handled twice, even if Stripe delivers it more than once.
 
-## Learn More
+**Server-side pricing** — product prices live in `src/lib/products.ts` on the server. The browser only sends a `productId`. Stripe session is created with the server's price.
 
-To learn more about Next.js, take a look at the following resources:
+**Refund via webhook** — clicking "Request refund" calls `/api/refund` which creates a refund in Stripe. The order status updates to `refunded` only after the `charge.refunded` webhook arrives.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Local development
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Prerequisites
 
-## Deploy on Vercel
+- Node.js 18+
+- [Stripe CLI](https://docs.stripe.com/stripe-cli)
+- A [Neon](https://neon.tech) PostgreSQL database
+- A [Stripe](https://dashboard.stripe.com) account (test mode)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Setup
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+git clone https://github.com/wayphantomme/stripe-payment.git
+cd stripe-payment
+npm install
+```
+
+Copy `.env.example` to `.env.local` and fill in the values:
+
+```bash
+cp .env.example .env.local
+```
+
+Run database migrations:
+
+```bash
+npx drizzle-kit migrate
+```
+
+### Running
+
+Terminal 1 — dev server:
+```bash
+npm run dev
+```
+
+Terminal 2 — forward webhooks:
+```bash
+stripe listen --forward-to localhost:3000/api/webhook
+```
+
+Copy the `whsec_...` value from terminal 2 into `STRIPE_WEBHOOK_SECRET` in `.env.local`, then open http://localhost:3000.
+
+### Test cards
+
+| Scenario | Card number |
+|---|---|
+| Success | `4242 4242 4242 4242` |
+| Decline | `4000 0000 0000 0002` |
+| Insufficient funds | `4000 0000 0000 9995` |
+| 3D Secure | `4000 0000 0000 3220` |
+
+Use any future expiry date and any 3-digit CVC.
+
+## Environment variables
+
+| Variable | Description |
+|---|---|
+| `STRIPE_SECRET_KEY` | Stripe secret key (`sk_test_...`) |
+| `STRIPE_WEBHOOK_SECRET` | Webhook signing secret (`whsec_...`) |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (`pk_test_...`) |
+| `DATABASE_URL` | Neon pooled connection string |
+| `DATABASE_URL_UNPOOLED` | Neon direct connection string (migrations only) |
+| `NEXT_PUBLIC_BASE_URL` | App base URL (`http://localhost:3000` or production URL) |
