@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AutoRefresh from "@/components/AutoRefresh";
+import RefundButton from "@/components/RefundButton";
 import { getOrder } from "@/lib/db";
 import type { OrderStatus } from "@/lib/schema";
 
@@ -64,6 +65,7 @@ export default async function SuccessPage({
   const status = order.status as OrderStatus;
   const config = statusConfig[status] ?? statusConfig.pending;
   const isPending = status === "pending";
+  const isPaid = status === "paid";
 
   return (
     <main className="mx-auto max-w-lg px-4 py-16">
@@ -111,7 +113,18 @@ export default async function SuccessPage({
               </dd>
             </div>
           )}
+          {order.refundedAt && (
+            <div className="flex justify-between">
+              <dt className="text-gray-500">Refunded at</dt>
+              <dd className="text-gray-700">
+                {new Date(order.refundedAt).toLocaleString()}
+              </dd>
+            </div>
+          )}
         </dl>
+
+        {/* Refund button — only shown when order is paid */}
+        {isPaid && <RefundButton orderId={order.id} />}
 
         <div className="mt-8">
           <Link
@@ -123,8 +136,8 @@ export default async function SuccessPage({
         </div>
       </div>
 
-      {/* Auto-refresh only while pending */}
-      <AutoRefresh active={isPending} />
+      {/* Auto-refresh while pending or while waiting for refund confirmation */}
+      <AutoRefresh active={isPending || isPaid} />
     </main>
   );
 }

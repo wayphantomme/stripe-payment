@@ -5,7 +5,9 @@ import {
   hasProcessedEvent,
   markPaid,
   markStatus,
+  markRefunded,
   recordEvent,
+  getOrderByPaymentIntent,
 } from "@/lib/db";
 
 export async function POST(req: Request) {
@@ -76,6 +78,18 @@ export async function POST(req: Request) {
         const orderId = session.metadata?.orderId;
         if (orderId) {
           await markStatus(orderId, "expired");
+        }
+        break;
+      }
+
+      case "charge.refunded": {
+        const charge = event.data.object as Stripe.Charge;
+        const paymentIntent = charge.payment_intent as string | null;
+        if (paymentIntent) {
+          const order = await getOrderByPaymentIntent(paymentIntent);
+          if (order) {
+            await markRefunded(order.id);
+          }
         }
         break;
       }
