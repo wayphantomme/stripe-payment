@@ -1,69 +1,56 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import BuyButton from "@/components/BuyButton";
+import { PRODUCTS } from "@/lib/products";
 
 export default function Home() {
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>
-            To get started, edit the{" "}
-            <code className={styles.code}>page.tsx</code> file.
-          </h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="mx-auto max-w-2xl px-4 py-16">
+      {/* Header */}
+      <div className="mb-10 text-center">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+          Stripe Shop
+        </h1>
+        <p className="mt-2 text-sm text-gray-500">
+          Sandbox mode — no real money moves
+        </p>
+        <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-50 px-4 py-1.5 text-xs text-amber-700 ring-1 ring-amber-200">
+          <span>🧪</span>
+          <span>
+            Test card:{" "}
+            <code className="font-mono font-semibold">
+              4242 4242 4242 4242
+            </code>{" "}
+            · any future date · any CVC
+          </span>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      </div>
+
+      {/* Product list */}
+      <div className="flex flex-col gap-6">
+        {Object.values(PRODUCTS).map((product) => (
+          <div
+            key={product.id}
+            className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {product.name}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  {product.description}
+                </p>
+              </div>
+              <span className="shrink-0 text-xl font-bold text-indigo-600">
+                {(product.amount / 100).toLocaleString("en-US", {
+                  style: "currency",
+                  currency: product.currency.toUpperCase(),
+                })}
+              </span>
+            </div>
+            <BuyButton productId={product.id} />
+          </div>
+        ))}
+      </div>
+    </main>
   );
 }
